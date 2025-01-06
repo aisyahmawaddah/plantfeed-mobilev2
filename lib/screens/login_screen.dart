@@ -102,26 +102,40 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: const Text('Login'),
                   onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      try {
-                        var res = await apiService.login(emailController.text, passwordController.text);
-                        dev.log('response: $res');
-                        if (res.containsKey('token')) {
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString('token', res['token']);
-                          await prefs.setInt('ID', res['ID']);
-                          if (!context.mounted) return;
+  if (_formKey.currentState!.validate()) {
+    try {
+      // Attempt to log in
+      var res = await apiService.login(emailController.text, passwordController.text);
+      
+      dev.log('response: ${res.toString()}'); // Log the full response
 
-                          Navigator.pushReplacementNamed(context, '/');
-                        } else {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed')));
-                        }
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                      }
-                    }
-                  },
+      // Ensure the response is a Map
+      if (res is Map<String, dynamic>) {
+        // Safely extracting values
+        var token = res['token'] as String? ?? ''; // Default to empty string if null
+        var id = res['ID'] as int? ?? 0; // Default to 0 if null
+
+        // Validate extracted values
+        if (token.isNotEmpty && id > 0) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', token); // Store token
+          await prefs.setInt('ID', id); // Store ID
+
+          // Navigate to the home screen
+          Navigator.pushReplacementNamed(context, '/');
+        } else {
+          // Handle case where token or ID is invalid
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed: Invalid token or ID')));
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed: Invalid response format')));
+      }
+    } catch (e) {
+      // Catch any unexpected errors during login
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+}
                 ),
               ),
             ),

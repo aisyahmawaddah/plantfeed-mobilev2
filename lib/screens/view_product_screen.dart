@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:plant_feed/model/product_model.dart';
-import 'package:plant_feed/model/review_model.dart';
-import 'package:plant_feed/Services/services.dart'; 
+import 'package:plant_feed/Services/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:plant_feed/config.dart';
 
@@ -18,7 +17,6 @@ class ViewProductScreenState extends State<ViewProductScreen> {
   final ApiService apiService = ApiService();
   bool isLoading = true;
   Product? product; // Nullable Product instance
-  List<Review> reviews = []; // Store reviews here
 
   @override
   void initState() {
@@ -27,26 +25,20 @@ class ViewProductScreenState extends State<ViewProductScreen> {
   }
 
   Future<void> fetchData() async {
-  try {
-    product = await apiService.fetchProductDetails(widget.productId);
-  } catch (error) {
-    print('Error fetching product details: $error');
-    setState(() {
-      product = null; // Explicitly set product to null
-    });
+    try {
+      // Fetching product details (including reviews)
+      product = await apiService.fetchProductDetails(widget.productId);
+    } catch (error) {
+      print('Error fetching product details: $error');
+      setState(() {
+        product = null; // Explicitly set product to null on error
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
-
-  try {
-    reviews = await apiService.fetchReviews(widget.productId);
-  } catch (error) {
-    print('Error fetching reviews: $error');
-    reviews = []; // Set reviews to an empty list on error
-  } finally {
-    setState(() {
-      isLoading = false;
-    });
-  }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -58,9 +50,16 @@ class ViewProductScreenState extends State<ViewProductScreen> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : product == null
-              ? const Center(child: Text('Failed to load product')) // Handle null product state
+              ? const Center(child: Text('Failed to load product'))
               : buildProductDetails(), // Call method to build detailed view
     );
+  }
+
+  String _getFullImageUrl(String? relativeUrl) {
+    if (relativeUrl != null && !relativeUrl.startsWith('http')) {
+      return '${Config.apiUrl}$relativeUrl'; // Prepend the base URL if the image URL is relative
+    }
+    return relativeUrl ?? ''; // Return the URL if it's already absolute or null
   }
 
   Widget buildProductDetails() {
@@ -74,9 +73,7 @@ class ViewProductScreenState extends State<ViewProductScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: CachedNetworkImage(
-                imageUrl: product!.productPhoto != null 
-                    ? '${Config.apiUrl}${product!.productPhoto}' // Ensuring URL is safe if not null
-                    : '',
+                imageUrl: _getFullImageUrl(product!.productPhoto),
                 height: 250,
                 width: double.infinity,
                 fit: BoxFit.contain,
@@ -128,9 +125,7 @@ class ViewProductScreenState extends State<ViewProductScreen> {
             ListTile(
               leading: CircleAvatar(
                 // Safely check for seller photo
-                backgroundImage: (product!.seller.photo != null && product!.seller.photo!.isNotEmpty)
-                    ? NetworkImage(product!.seller.photo!) // Ensure the photo is not null or empty
-                    : const AssetImage('assets/images/placeholder_image.png') as ImageProvider,
+                backgroundImage: NetworkImage(_getFullImageUrl(product!.seller.photo)),
                 radius: 30,
                 backgroundColor: Colors.transparent,
               ),
@@ -150,35 +145,56 @@ class ViewProductScreenState extends State<ViewProductScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
             ),
             const SizedBox(height: 8),
-reviews.isNotEmpty
-    ? ListView.builder(
-        shrinkWrap: true, // Allows the ListView to take up the required height
-        physics: const NeverScrollableScrollPhysics(), // Disable own scrolling
-        itemCount: reviews.length,
-        itemBuilder: (context, index) {
-          final review = reviews[index]; // Fetching the review object
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundImage: (review.reviewer.photo != null && review.reviewer.photo!.isNotEmpty)
-                  ? NetworkImage(review.reviewer.photo!) // Use photo URL safely with null check
-                  : const AssetImage('assets/images/placeholder.png') as ImageProvider,
-            ),
-            title: Text(review.reviewer.username), // Displaying reviewer's username
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(review.content), // Displaying review content
-                const SizedBox(height: 4),
-                Text(
-                  review.date, // Displaying review date
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        },
-      )
-    : const Text('No reviews yet.'), // Message when no reviews
+            product!.reviews.isNotEmpty
+                ? ListView.builder(
+                    shrinkWrap: true, // Allows the ListView to take up the required height
+                    physics: const NeverScrollableScrollPhysics(), // Disable own scrolling
+                    itemCount: product!.reviews.length,
+                    itemBuilder: (context, index) {
+                      final review = product!.reviews[index]; // Fetching the review object
+                      return Card(
+                        elevation: 4,
+                        margin: const EdgeInsets.only(bottom: 16.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Reviewer Info: photo, name
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundImage: NetworkImage(_getFullImageUrl(review.reviewer.photo)),
+                                    radius: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    review.reviewer.username,
+                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    review.date,
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              // Review Content
+                              Text(
+                                review.content,
+                                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : const Text('No reviews yet.', style: TextStyle(fontSize: 16, color: Colors.grey)), // Message when no reviews
           ],
         ),
       ),

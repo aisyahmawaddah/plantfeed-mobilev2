@@ -1,14 +1,14 @@
 // lib/models/order_model.dart
 
-import 'package:plant_feed/model/product_model.dart';
-import 'package:plant_feed/model/person_model.dart'; // Import the shared Person class
+import 'package:plant_feed/model/order_item_model.dart';
+import 'package:plant_feed/model/person_model.dart';
 
 class OrderInfo {
   final int id;
   final String name;
   final String email;
   final String address;
-  final String shipping;
+  final double shipping;
   final double total;
   final String status;
 
@@ -28,7 +28,9 @@ class OrderInfo {
       name: json['name'] ?? 'Unknown Name',
       email: json['email'] ?? 'No Email',
       address: json['address'] ?? 'No Address',
-      shipping: json['shipping']?.toString() ?? '0.00',
+      shipping: json['shipping'] != null
+          ? double.tryParse(json['shipping'].toString()) ?? 0.0
+          : 0.0,
       total: json['total'] != null
           ? double.tryParse(json['total'].toString()) ?? 0.0
           : 0.0,
@@ -36,7 +38,6 @@ class OrderInfo {
     );
   }
 
-  // Convert OrderInfo instance to JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -52,8 +53,7 @@ class OrderInfo {
 
 class Order {
   final int basketId;
-  final int productQty;
-  final Product product;
+  final OrderItem item; // Single OrderItem per basket
   final Person buyer;
   final bool isCheckout;
   final String transactionCode;
@@ -62,8 +62,7 @@ class Order {
 
   Order({
     required this.basketId,
-    required this.productQty,
-    required this.product,
+    required this.item,
     required this.buyer,
     required this.isCheckout,
     required this.transactionCode,
@@ -76,32 +75,10 @@ class Order {
       basketId: json['basket_id'] != null
           ? int.tryParse(json['basket_id'].toString()) ?? 0
           : 0,
-      productQty: json['productqty'] != null
-          ? int.tryParse(json['productqty'].toString()) ?? 0
-          : 0,
-      product: json['productid'] != null
-          ? Product.fromJson(json['productid'])
-          : Product(
-              productId: 0,
-              productName: 'Unknown Product',
-              productDesc: 'No Description Available',
-              productCategory: 'Uncategorized',
-              productPrice: 0.0,
-              productStock: 0,
-              productPhoto: null,
-              productRating: 0,
-              productSold: 0,
-              timePosted: DateTime.now(),
-              restricted: false,
-              seller: Person(
-                id: 0,
-                username: 'Unknown User',
-                email: 'No Email Provided',
-                photo: null,
-                name: 'Unknown Name',
-              ),
-              reviews: [],
-            ),
+      item: OrderItem.fromJson({
+        'quantity': json['productqty'],
+        'product': json['productid'],
+      }),
       buyer: json['buyer_info'] != null
           ? Person.fromJson(json['buyer_info'])
           : Person(
@@ -121,19 +98,17 @@ class Order {
               name: 'Unknown',
               email: 'No Email',
               address: 'No Address',
-              shipping: '0.00',
+              shipping: 0.0,
               total: 0.0,
               status: 'Unknown Status',
             ),
     );
   }
 
-  // Convert Order instance to JSON
   Map<String, dynamic> toJson() {
     return {
       'basket_id': basketId,
-      'productqty': productQty,
-      'productid': product.toJson(),
+      'item': item.toJson(),
       'buyer_info': buyer.toJson(),
       'is_checkout': isCheckout,
       'transaction_code': transactionCode,
@@ -142,6 +117,6 @@ class Order {
     };
   }
 
-  // Add a getter for id
+  // Getter for id
   int get id => orderInfo.id;
 }

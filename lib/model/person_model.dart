@@ -6,8 +6,8 @@ class Person {
   final int id;
   final String username;
   final String email;
-  final String? photo; // Nullable photo
-  final String name; // Added 'name' field
+  final String? photo;
+  final String name;
 
   Person({
     required this.id,
@@ -22,12 +22,11 @@ class Person {
       id: json['id'] ?? 0,
       username: json['Username'] ?? 'Unknown User',
       email: json['Email'] ?? 'No Email Provided',
-      photo: json['photo'], // Nullable photo field
+      photo: json['Photo'],
       name: json['Name'] ?? 'Unknown Name',
     );
   }
 
-  // Convert Person instance to JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -38,6 +37,11 @@ class Person {
     };
   }
 
-  // Helper method to get photo URL or a placeholder
-  String get photoUrl => photo != null ? '${Config.apiUrl}$photo' : 'default_avatar_url';
+  String get photoUrl {
+    if (photo != null && photo!.isNotEmpty) {
+      return '${Config.apiUrl}/$photo'; 
+    } else {
+      return 'https://www.w3schools.com/w3images/avatar2.png'; // Placeholder image URL
+    }
+  }
 }

@@ -138,7 +138,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
               onPressed: navigateToBasketSummary,
             ),
-            // New Order History Icon Button
             IconButton(
               icon: const Icon(Icons.history),
               onPressed: navigateToOrderHistory, // Navigate to Order History Screen
@@ -230,16 +229,18 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Displaying Seller's Profile Photo
             Row(
               children: [
-                CircleAvatar(
-                  backgroundImage: NetworkImage(product.productPhoto ?? ''),
+                 CircleAvatar(
+                  backgroundImage: NetworkImage(product.seller.photoUrl),  // Accessing photoUrl from seller
                   radius: 20,
                   backgroundColor: Colors.transparent,
                 ),
                 const SizedBox(width: 8),
+                // Displaying Seller's Username
                 Text(
-                  product.seller.username, // Display the seller's name
+                  product.seller.username,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.black,
@@ -249,13 +250,14 @@ class ProductCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ViewProductScreen(productId: product.productId), // Pass the correct argument
-      ),
+            // Product Name
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ViewProductScreen(productId: product.productId), // Pass the correct argument
+                  ),
                 );
               },
               child: Text(
@@ -268,6 +270,7 @@ GestureDetector(
               ),
             ),
             const SizedBox(height: 8),
+            // Product Photo
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
@@ -285,6 +288,7 @@ GestureDetector(
               ),
             ),
             const SizedBox(height: 8),
+            // Product Info: Price, Stock, Sold
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -308,6 +312,7 @@ GestureDetector(
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 8),
+            // Buttons: Add to Basket and Buy Now
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -333,6 +338,7 @@ GestureDetector(
               ],
             ),
             const SizedBox(height: 8),
+            // Time Posted
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

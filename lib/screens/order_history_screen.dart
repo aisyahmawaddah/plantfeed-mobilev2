@@ -38,27 +38,23 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       final Map<String, dynamic> historyData =
           await _apiService.fetchOrderHistory(userId);
 
-      // Debug: Print the entire historyData to inspect its structure
       debugPrint('Fetched historyData: $historyData');
 
       List<Order> orders = [];
 
-      // Check if 'all_basket' exists and is a List
       if (historyData.containsKey('all_basket') &&
           historyData['all_basket'] is List) {
         List<dynamic> allBasket = historyData['all_basket'];
-
-        // Debug: Print the length of allBasket
         debugPrint('Number of orders in all_basket: ${allBasket.length}');
 
         for (var orderJson in allBasket) {
           if (orderJson is Map<String, dynamic>) {
             Order parsedOrder = Order.fromJson(orderJson);
             orders.add(parsedOrder);
-            // Debug: Print each parsed order's ID and Seller Name
+
+            // Since item is non-nullable, no need to check for null
             debugPrint('Parsed Order ID: ${parsedOrder.id}');
-            debugPrint(
-                'Parsed Seller Name: ${parsedOrder.product.seller.name}');
+            debugPrint('Parsed Seller Name: ${parsedOrder.item.product.seller.name}');
           } else {
             debugPrint('Invalid order format: $orderJson');
           }
@@ -67,11 +63,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         debugPrint('all_basket is either missing or not a List.');
       }
 
-      // Debug: Print the final list of orders
       debugPrint('Total parsed orders: ${orders.length}');
       for (var order in orders) {
-        debugPrint(
-            'Order ID: ${order.id}, Seller Name: ${order.product.seller.name}');
+        debugPrint('Order ID: ${order.id}, Seller Name: ${order.item.product.seller.name}');
       }
 
       return orders;
@@ -89,7 +83,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   Future<void> _cancelOrder(int orderId, int sellerId) async {
     try {
-      // Show a loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -98,7 +91,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
       await _apiService.cancelOrder(orderId, sellerId);
 
-      // Remove the loading indicator
       Navigator.of(context).pop();
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -106,13 +98,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       );
 
       setState(() {
-        orderHistory =
-            _loadOrderHistory(); // Refresh order history after cancellation
+        orderHistory = _loadOrderHistory();
       });
     } catch (e) {
-      // Remove the loading indicator if an error occurs
       Navigator.of(context).pop();
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to cancel order: $e')),
       );
@@ -144,72 +133,61 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Future<void> _completeOrder(int orderId, int sellerId) async {
-  try {
-    // Show a loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
 
-    // Call API to complete the order
-    await _apiService.completeOrder(orderId, sellerId); // Pass orderId directly
+      await _apiService.completeOrder(orderId, sellerId);
 
-    // Remove the loading indicator
-    Navigator.of(context).pop();
+      Navigator.of(context).pop();
 
-    // Fetch and reload the order history after completing the order.
-    setState(() {
-      orderHistory = _loadOrderHistory();
-    });
+      setState(() {
+        orderHistory = _loadOrderHistory();
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Order marked as received.')),
-    );
-  } catch (e) {
-    // Remove the loading indicator in case of error
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to complete order: $e')),
-    );
-  }
-}
-
-Future<void> _addToBasket(int orderId, int sellerId) async {
-  try {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Directly retrieve the user ID from SharedPreferences
-    int? userId = prefs.getInt('ID');
-
-    if (userId == null) {
-      throw Exception('User ID not found');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order marked as received.')),
+      );
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to complete order: $e')),
+      );
     }
-
-    // Show a loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    // Call the API service with the order ID, seller ID, and user ID
-    await _apiService.orderAgain(orderId, sellerId, userId);
-
-    // Remove the loading indicator
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Order added to your basket.')),
-    );
-  } catch (e) {
-    // Remove the loading indicator if an error occurs
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to add order to basket: $e')),
-    );
   }
-}
+
+  Future<void> _addToBasket(int orderId, int sellerId) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      int? userId = prefs.getInt('ID');
+
+      if (userId == null) {
+        throw Exception('User ID not found');
+      }
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await _apiService.orderAgain(orderId, sellerId, userId);
+
+      Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order added to your basket.')),
+      );
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add order to basket: $e')),
+      );
+    }
+  }
 
   Future<void> _reviewProduct(int orderId, int productId, int sellerId) async {
     try {
@@ -231,21 +209,44 @@ Future<void> _addToBasket(int orderId, int sellerId) async {
   }
 
   Future<void> _viewInvoice(List<Order> matchingOrders) async {
-    // Convert List<Order> to List<Map<String, dynamic>>
-    List<Map<String, dynamic>> ordersMap =
-        matchingOrders.map((order) => order.toJson()).toList();
+    if (matchingOrders.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No orders found for this transaction.')),
+      );
+      return;
+    }
+
+    final transactionCode = matchingOrders[0].transactionCode;
+    final shippingCost = matchingOrders[0].orderInfo.shipping;
+    final total = matchingOrders[0].orderInfo.total;
+
+    List<Map<String, dynamic>> itemsMap = [];
+    for (var order in matchingOrders) {
+      final item = order.item; // Single item because of your model
+      itemsMap.add({
+        'productName': item.product.productName,
+        'productPrice': item.product.productPrice.toString(),
+        'productqty': item.quantity,
+      });
+    }
+
+    debugPrint('Items passed to InvoiceScreen: $itemsMap');
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => InvoiceScreen(orders: ordersMap),
+        builder: (context) => InvoiceScreen(
+          order: {
+            'transaction_code': transactionCode,
+            'order_info': {
+              'shipping': shippingCost,
+              'total': total,
+            },
+            'items': itemsMap,
+          },
+        ),
       ),
     );
-  }
-
-  // Helper function to get seller name safely
-  String _getSellerName(Order order) {
-    return order.product.seller.name;
   }
 
   @override
@@ -272,34 +273,53 @@ Future<void> _addToBasket(int orderId, int sellerId) async {
         future: orderHistory,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // Loading indicator while fetching data
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            // Display error message
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            // No order history available
             return const Center(child: Text('No order history available.'));
           }
 
           List<Order> orders = snapshot.data!;
 
-          // Sort orders based on order ID
-          orders.sort((a, b) {
-            return sortByNewest ? b.id.compareTo(a.id) : a.id.compareTo(b.id);
+          // Group orders by transaction code
+          Map<String, List<Order>> groupedOrders = {};
+          for (var order in orders) {
+            String txnCode = order.transactionCode;
+            if (!groupedOrders.containsKey(txnCode)) {
+              groupedOrders[txnCode] = [];
+            }
+            groupedOrders[txnCode]?.add(order);
+          }
+
+          // Convert the map to a list for sorting
+          List<MapEntry<String, List<Order>>> groupedOrdersList = groupedOrders.entries.toList();
+
+          // Sort the grouped orders
+          groupedOrdersList.sort((a, b) {
+            try {
+              // Extract DateTime from transaction_code
+              // Assuming transaction_code is in the format 'TRANS#YYYY-MM-DD HH:MM:SS'
+              String dateStringA = a.key.replaceFirst('TRANS#', '');
+              String dateStringB = b.key.replaceFirst('TRANS#', '');
+              DateTime aTime = DateTime.parse(dateStringA);
+              DateTime bTime = DateTime.parse(dateStringB);
+              return sortByNewest ? bTime.compareTo(aTime) : aTime.compareTo(bTime);
+            } catch (e) {
+              debugPrint('Error parsing transaction_code dates: $e');
+              return 0;
+            }
           });
 
           return Column(
             children: [
               // Sorting Toggle
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(
-                        sortByNewest ? 'Newest to Oldest' : 'Oldest to Newest'),
+                    Text(sortByNewest ? 'Newest to Oldest' : 'Oldest to Newest'),
                     IconButton(
                       icon: const Icon(Icons.sort),
                       onPressed: _toggleSortOrder,
@@ -307,21 +327,19 @@ Future<void> _addToBasket(int orderId, int sellerId) async {
                   ],
                 ),
               ),
-              // List of Orders
+              // List of Grouped Orders
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12.0, vertical: 16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
                   child: ListView.builder(
-                    itemCount: orders.length,
+                    itemCount: groupedOrdersList.length,
                     itemBuilder: (context, index) {
-                      final order = orders[index];
-                      final sellerName = _getSellerName(order);
-                      final status = order.status.toLowerCase();
-                      final transactionCode = order.transactionCode;
-                      final orderId = order.id; // Using the 'id' field
-                      final sellerId = order.product.seller.id;
-                      final productId = order.product.productId;
+                      final transactionCode = groupedOrdersList[index].key;
+                      final matchingOrders = groupedOrdersList[index].value;
+                      final shippingCost = matchingOrders[0].orderInfo.shipping;
+                      final total = matchingOrders[0].orderInfo.total;
+                      final sellerName = matchingOrders[0].buyer.name;
+                      final sellerId = matchingOrders[0].buyer.id;
 
                       // Determine the buttons based on status
                       String statusButtonText;
@@ -333,82 +351,71 @@ Future<void> _addToBasket(int orderId, int sellerId) async {
                       Color actionButtonColor;
                       VoidCallback? actionButtonAction;
 
+                      String status = matchingOrders[0].status.toLowerCase();
+
                       switch (status) {
                         case 'payment made':
                           statusButtonText = 'Payment Made';
                           statusButtonColor = Colors.blueGrey;
                           isStatusButtonEnabled = false;
-
                           actionButtonText = 'Cancel Order';
                           actionButtonColor = Colors.red;
-                          actionButtonAction =
-                              () => _confirmCancelOrder(orderId, sellerId);
+                          actionButtonAction = () => _confirmCancelOrder(matchingOrders[0].id, sellerId);
                           break;
 
                         case 'package order':
                           statusButtonText = 'Package Order';
                           statusButtonColor = Colors.blueGrey;
                           isStatusButtonEnabled = false;
-
                           actionButtonText = 'Cancel Order';
                           actionButtonColor = Colors.red;
-                          actionButtonAction =
-                              () => _confirmCancelOrder(orderId, sellerId);
+                          actionButtonAction = () => _confirmCancelOrder(matchingOrders[0].id, sellerId);
                           break;
 
                         case 'ship order':
-                          statusButtonText =
-                              'Ship Order'; // This text can be changed to 'Ship Order' if needed
+                          statusButtonText = 'Ship Order';
                           statusButtonColor = Colors.blueGrey;
-                          isStatusButtonEnabled =
-                              false; // Assuming you want it disabled until action is taken
-
+                          isStatusButtonEnabled = false;
                           actionButtonText = 'Complete Order';
                           actionButtonColor = Colors.green;
-                          actionButtonAction =
-                              () => _completeOrder(orderId, sellerId);
+                          actionButtonAction = () => _completeOrder(matchingOrders[0].id, sellerId);
                           break;
 
                         case 'order received':
                           statusButtonText = 'Review Product';
                           statusButtonColor = Colors.green;
                           isStatusButtonEnabled = true;
-                          statusButtonAction = () =>
-                              _reviewProduct(orderId, productId, sellerId);
-
+                          statusButtonAction = () => _reviewProduct(
+                              matchingOrders[0].id,
+                              matchingOrders[0].item.product.productId,
+                              sellerId);
                           actionButtonText = 'Re-Order';
                           actionButtonColor = Colors.orange;
-                          actionButtonAction =
-                              () => _addToBasket(orderId, sellerId);
+                          actionButtonAction = () => _addToBasket(matchingOrders[0].id, sellerId);
                           break;
 
                         case 'product reviewed':
                           statusButtonText = 'Product Reviewed';
                           statusButtonColor = Colors.blueGrey;
                           isStatusButtonEnabled = false;
-
                           actionButtonText = 'Re-Order';
                           actionButtonColor = Colors.orange;
-                          actionButtonAction =
-                              () => _addToBasket(orderId, sellerId);
+                          actionButtonAction = () => _addToBasket(matchingOrders[0].id, sellerId);
                           break;
 
                         case 'cancel':
                           statusButtonText = 'Cancelled';
                           statusButtonColor = Colors.red;
                           isStatusButtonEnabled = false;
-
                           actionButtonText = 'Re-Order';
                           actionButtonColor = Colors.orange;
-                          actionButtonAction =
-                              () => _addToBasket(orderId, sellerId);
+                          actionButtonAction = () => _addToBasket(matchingOrders[0].id, sellerId);
                           break;
 
                         default:
                           statusButtonText = 'Unknown Status';
                           statusButtonColor = Colors.blueGrey;
                           isStatusButtonEnabled = false;
-
                           actionButtonText = 'N/A';
                           actionButtonColor = Colors.grey;
                           actionButtonAction = null;
@@ -417,11 +424,10 @@ Future<void> _addToBasket(int orderId, int sellerId) async {
 
                       // Status Button Widget
                       Widget statusButton = ElevatedButton(
-                        onPressed:
-                            isStatusButtonEnabled ? statusButtonAction : null,
+                        onPressed: isStatusButtonEnabled ? statusButtonAction : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: statusButtonColor,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8.0),
                           ),
@@ -437,7 +443,7 @@ Future<void> _addToBasket(int orderId, int sellerId) async {
                         onPressed: actionButtonAction,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: actionButtonColor,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8.0),
                           ),
@@ -450,93 +456,71 @@ Future<void> _addToBasket(int orderId, int sellerId) async {
 
                       return Card(
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
-                        elevation: 4,
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 8.0, horizontal: 4.0),
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        elevation: 4.0,
+                        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Order ID
+                              // Transaction Code
                               Text(
-                                'Order ID: ${order.id}', // Using the 'id' field
+                                'Transaction Code: $transactionCode',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 18,
+                                  fontSize: 18.0,
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              // Transaction Code
-                              Row(
-                                children: [
-                                  const Icon(Icons.receipt_long,
-                                      color: Colors.grey),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Transaction Code: $transactionCode',
-                                      style:
-                                          const TextStyle(color: Colors.grey),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12.0),
                               // Seller Name
                               Row(
                                 children: [
                                   const Icon(Icons.person, color: Colors.grey),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 8.0),
                                   Expanded(
                                     child: Text(
                                       'Seller: $sellerName',
-                                      style:
-                                          const TextStyle(color: Colors.grey),
+                                      style: const TextStyle(color: Colors.grey),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 8.0),
                               // Status
                               Row(
                                 children: [
                                   const Icon(Icons.info, color: Colors.grey),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 8.0),
                                   Expanded(
                                     child: Text(
-                                      'Status: ${order.status}',
-                                      style:
-                                          const TextStyle(color: Colors.grey),
+                                      'Status: ${matchingOrders[0].status}',
+                                      style: const TextStyle(color: Colors.grey),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 16.0),
                               // Buttons
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  statusButton,
-                                  const SizedBox(height: 8),
+                                  statusButton, // Status button
+                                  const SizedBox(height: 8.0),
                                   ElevatedButton(
                                     onPressed: () {
                                       // Find all orders with the same transaction code
                                       List<Order> matchingOrders = orders
-                                          .where((o) =>
-                                              o.transactionCode ==
-                                              transactionCode)
+                                          .where((o) => o.transactionCode == transactionCode)
                                           .toList();
                                       _viewInvoice(matchingOrders);
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.grey,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
+                                      padding: const EdgeInsets.symmetric(vertical: 12.0),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
+                                        borderRadius: BorderRadius.circular(8.0),
                                       ),
                                     ),
                                     child: const Text(
@@ -544,7 +528,7 @@ Future<void> _addToBasket(int orderId, int sellerId) async {
                                       style: TextStyle(color: Colors.white),
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 8.0),
                                   // Only display actionButton if it's not 'N/A'
                                   if (actionButtonAction != null) actionButton,
                                 ],

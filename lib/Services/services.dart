@@ -20,8 +20,8 @@ import 'package:plant_feed/model/workshop_sharing_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plant_feed/model/product_model.dart';
 import 'package:plant_feed/model/basket_item_model.dart';
-import 'package:plant_feed/model/review_model.dart';
-import 'dart:developer' as dev;
+//import 'package:plant_feed/model/review_model.dart';
+//import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
 import 'package:plant_feed/config.dart'; // Import the configuration file
 
@@ -96,33 +96,34 @@ class ApiService {
 
 //farah's
 // Fetch reviews for a product
-  Future<List<Review>> fetchReviews(int productId) async {
-    final response =
-        await http.get(Uri.parse('$url/marketplace/api/reviews/$productId'));
+  // Future<List<Review>> fetchReviews(int productId) async {
+  //   final response =
+  //       await http.get(Uri.parse('$url/marketplace/api/reviews/$productId'));
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data.map((json) => Review.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to load reviews');
-    }
-  }
+  //   if (response.statusCode == 200) {
+  //     final List<dynamic> data = json.decode(response.body);
+  //     return data.map((json) => Review.fromJson(json)).toList();
+  //   } else {
+  //     throw Exception('Failed to load reviews');
+  //   }
+  // }
 
-  // Fetch reviewer details by Person_fk_id
-  Future<Map<String, String>> fetchReviewerDetails(int personId) async {
-    final response =
-        await http.get(Uri.parse('$url/marketplace/api/person/$personId'));
+  // // Fetch reviewer details by Person_fk_id
+  // Future<Map<String, String>> fetchReviewerDetails(int personId) async {
+  //   final response =
+  //       await http.get(Uri.parse('$url/marketplace/api/person/$personId'));
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return {
-        'name': data['name'],
-        'photo': data['photo'],
-      };
-    } else {
-      throw Exception('Failed to load reviewer details');
-    }
-  }
+  //   if (response.statusCode == 200) {
+  //     final data = json.decode(response.body);
+  //     return {
+  //       'name': data['name'],
+  //       'photo': data['photo'],
+  //     };
+  //   } else {
+  //     throw Exception('Failed to load reviewer details');
+  //   }
+  // }
+
 Future<Product> fetchProductDetails(int productId) async {
   final response =
       await http.get(Uri.parse('$url/marketplace/api/products/view/$productId/'));
@@ -613,10 +614,13 @@ Future<void> completeOrder(int orderId, int sellerId) async {
 }
 
   
-  // Review product
-  Future<void> reviewProduct(int fk1, int sellerId, String reviewContent) async {
+
+  // Updated Review Product Method
+  Future<void> reviewProduct(int orderId, int productId, int sellerId, String reviewContent) async {
+    final Uri uri = Uri.parse('$url/orders/api/review_product/$orderId/$productId/$sellerId/');
+
     final response = await http.post(
-      Uri.parse('$url/orders/api/review_product/$fk1/$sellerId/'),
+      uri,
       body: jsonEncode({'content': reviewContent}),
       headers: {'Content-Type': 'application/json'},
     );
@@ -625,6 +629,7 @@ Future<void> completeOrder(int orderId, int sellerId) async {
       throw Exception('Failed to submit review');
     }
   }
+
 
   // Get invoice details
   Future<Map<String, dynamic>> fetchInvoice(int fk1, int sellerId) async {
@@ -687,34 +692,60 @@ Future<void> updateOrderHistoryStatus(int orderId, String orderStatus, int selle
   
   
   //adli's
- Future<dynamic> login(String email, String password) async {
-  final res = await http.post(Uri.parse('$url/users/login/'),
-      headers: {"Accept": "application/json", "content-type": "application/json"},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }));
+  Future<dynamic> login(String email, String password) async {
+  final res = await http.post(
+    Uri.parse('$url/users/login/'),
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    body: jsonEncode({
+      'email': email,
+      'password': password,
+    }),
+  );
 
-  dev.log(res.body);
-  var json = jsonDecode(res.body);
-  dev.log(json.toString());
+  // Log the raw response body
+  debugPrint('Response Body: ${res.body}');
+
+  // Attempt to decode the JSON
+  dynamic jsonResponse;
+  try {
+    jsonResponse = jsonDecode(res.body);
+    debugPrint('Parsed JSON: $jsonResponse');
+  } catch (e) {
+    throw Exception('Failed to parse server response: $e');
+  }
 
   if (res.statusCode == 200) {
-    String token = json['token']; // Assuming this is a non-nullable string
-    int userId = json['ID']; // Changed variable name to avoid confusion with local variable
-    String userName = json['name']; // Retrieve the user's name from the response
+    // Safely extract fields with null checks
+    String? token = jsonResponse['token'];
+    int? userId = jsonResponse['ID']; // Ensure the key matches the server response
+    String userName = jsonResponse['name'] ?? ''; // Assign default if 'name' is missing
+
+    // Validate extracted fields
+    if (token == null || userId == null) {
+      throw Exception('Missing required fields in server response.');
+    }
 
     // Store the token and email in SharedPreferences
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', token); // Store token
-    await prefs.setString('email', email.toLowerCase()); // Store email
-    await prefs.setInt('ID', userId); // Store user ID
-    await prefs.setString('name', userName); // Store user's name
+    bool tokenSaved = await prefs.setString('token', token);
+    bool emailSaved = await prefs.setString('email', email.toLowerCase());
+    bool idSaved = await prefs.setInt('ID', userId);
+    bool nameSaved = await prefs.setString('name', userName);
 
-    dev.log(token);
-    return json; // Return if needed
+    // Debugging: Confirm that data is saved
+    debugPrint('Token saved: $tokenSaved');
+    debugPrint('Email saved: $emailSaved');
+    debugPrint('ID saved: $idSaved');
+    debugPrint('Name saved: $nameSaved');
+
+    return jsonResponse; // Return if needed
   } else {
-    throw Exception('Something went wrong');
+    // Handle non-200 responses
+    String errorMessage = jsonResponse['error'] ?? 'Unknown error occurred.';
+    throw Exception('Login failed: $errorMessage');
   }
 }
 

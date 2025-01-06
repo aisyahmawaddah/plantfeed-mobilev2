@@ -1,19 +1,31 @@
+// lib/screens/invoice_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class InvoiceScreen extends StatelessWidget {
-  final List<Map<String, dynamic>> orders; // Accepting a list of orders
+  final Map<String, dynamic> order; // Single aggregated order
 
-  const InvoiceScreen({Key? key, required this.orders}) : super(key: key);
+  const InvoiceScreen({Key? key, required this.order}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Safely access and provide defaults if necessary
-    final transactionCode = orders.isNotEmpty ? (orders[0]['transaction_code'] ?? 'N/A') : 'N/A';
-    final shippingCost = orders.isNotEmpty ? double.tryParse(orders[0]['order_info']?['shipping']?.toString() ?? '0') ?? 0.0 : 0.0;
-    final total = orders.isNotEmpty ? double.tryParse(orders[0]['order_info']?['total']?.toString() ?? '0') ?? 0.0 : 0.0;
+    if (order.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Invoice'),
+          backgroundColor: Colors.green,
+        ),
+        body: const Center(child: Text('No orders available for the invoice.')),
+      );
+    }
+
+    final transactionCode = order['transaction_code'] ?? 'N/A';
+    final shippingCost = double.tryParse(order['order_info']?['shipping']?.toString() ?? '0') ?? 0.0;
+    final total = double.tryParse(order['order_info']?['total']?.toString() ?? '0') ?? 0.0;
+    final items = order['items'] as List<dynamic>? ?? [];
 
     return Scaffold(
       appBar: AppBar(
@@ -47,12 +59,19 @@ class InvoiceScreen extends StatelessWidget {
             const Text("Items", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
             const SizedBox(height: 8),
 
-            // Loop through each order to display product details
+            // Loop through each item to display product details
             Expanded(
               child: ListView.builder(
-                itemCount: orders.length,
+                itemCount: items.length,
                 itemBuilder: (context, index) {
-                  final order = orders[index];
+                  final item = items[index] as Map<String, dynamic>;
+                  final productName = item['productName'] ?? 'Unknown Product';
+                  final productQty = item['productqty'] ?? 0;
+                  final productPrice = double.tryParse(item['productPrice']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00';
+
+                  // Debugging prints
+                  debugPrint("Item $index: productName = $productName, productQty = $productQty, productPrice = $productPrice");
+
                   return Card(
                     elevation: 1,
                     margin: const EdgeInsets.symmetric(vertical: 4),
@@ -64,12 +83,12 @@ class InvoiceScreen extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(order['productid']['productName'] ?? 'Unknown Product', style: const TextStyle(fontWeight: FontWeight.bold)),
-                              Text("Qty: ${order['productqty'] ?? 0}"),
+                              Text(productName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text("Qty: $productQty"),
                             ],
                           ),
                           Text(
-                            "RM${double.tryParse(order['productid']['productPrice']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'}",
+                            "RM$productPrice",
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -106,7 +125,7 @@ class InvoiceScreen extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    _createPdf(context, transactionCode, shippingCost, total); // Pass context to PDF generation function
+                    _createPdf(context, transactionCode, shippingCost, total, items); // Pass items to PDF generation function
                   },
                   child: const Text('Save Invoice'),
                 ),
@@ -119,7 +138,7 @@ class InvoiceScreen extends StatelessWidget {
   }
 
   // Function to create and print/save PDF
-  void _createPdf(BuildContext context, String transactionCode, double shippingCost, double total) async {
+  void _createPdf(BuildContext context, String transactionCode, double shippingCost, double total, List<dynamic> items) async {
     // Show a loading dialog
     showDialog(
       context: context,
@@ -158,16 +177,16 @@ class InvoiceScreen extends StatelessWidget {
               pw.Text("Items", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18)),
               pw.SizedBox(height: 10),
 
-              // Loop through each order to display product details
-              for (var order in orders)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Expanded(child: pw.Text(order['productid']['productName'] ?? 'Unknown Product')),
-                    pw.Text("Qty: ${order['productqty'] ?? 0}"),
-                    pw.Text("RM${double.tryParse(order['productid']['productPrice']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00'}"),
-                  ],
-                ),
+              // Loop through each item to display product details
+              pw.Table.fromTextArray(
+                headers: ['Product Name', 'Quantity', 'Price'],
+                data: items.map((item) {
+                  final productName = item['productName'] ?? 'Unknown Product';
+                  final productQty = item['productqty'] ?? 0;
+                  final productPrice = double.tryParse(item['productPrice']?.toString() ?? '0')?.toStringAsFixed(2) ?? '0.00';
+                  return [productName, productQty.toString(), "RM$productPrice"];
+                }).toList(),
+              ),
 
               pw.SizedBox(height: 20),
               pw.Divider(),
